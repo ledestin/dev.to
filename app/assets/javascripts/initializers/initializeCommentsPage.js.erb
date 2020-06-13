@@ -1,4 +1,8 @@
 class CommentInitializer {
+  static call() {
+    new CommentInitializer().call()
+  }
+
   constructor() {
     this.commentableId = document.getElementById('comments-container').dataset.commentableId;
     this.commentableType = document.getElementById('comments-container').dataset.commentableType;
@@ -9,6 +13,8 @@ class CommentInitializer {
     this.updateAllCommentableButtonsAndReactionCountsAndStuff();
     this.updateReactionCountsAndStuff();
     this.setupCommentReplyButtonHandler();
+    this.replaceEditButtonOnClickWithNoop();
+    this.addNewCommentSubmitListener();
   }
 
   updateAllCommentableButtonsAndReactionCountsAndStuff() {
@@ -151,6 +157,23 @@ class CommentInitializer {
       butt.onclick = commentReplyButtonHandler
     }
   }
+
+  replaceEditButtonOnClickWithNoop() {
+    var editButts = document.getElementsByClassName('edit-butt');
+    for (var i = 0; i < editButts.length; i++) {
+      var butt = editButts[i];
+      butt.onclick = function () {
+        // event.preventDefault();
+        // alert("edit clicked!")
+      };
+    }
+  }
+
+  addNewCommentSubmitListener() {
+    if (document.getElementById('new_comment')) {
+      document.getElementById('new_comment').addEventListener('submit', handleCommentSubmit);
+    }
+  }
 }
 
 function initializeCommentsPage() {
@@ -160,19 +183,7 @@ function initializeCommentsPage() {
     var commentableType = document.getElementById('comments-container').dataset.commentableType;
     commentableIdList = commentableId.split(",");
 
-    new CommentInitializer().call()
-
-    var editButts = document.getElementsByClassName('edit-butt');
-    for (var i = 0; i < editButts.length; i++) {
-      var butt = editButts[i];
-      butt.onclick = function () {
-        // event.preventDefault();
-        // alert("edit clicked!")
-      };
-    }
-    if (document.getElementById('new_comment')) {
-      document.getElementById('new_comment').addEventListener('submit', handleCommentSubmit);
-    }
+    CommentInitializer.call()
   }
   listenForDetailsToggle();
 }
