@@ -15,9 +15,9 @@ class Listing < ApplicationRecord
   belongs_to :listing_category, inverse_of: :listings, foreign_key: :classified_listing_category_id
   belongs_to :user
   belongs_to :organization, optional: true
+  before_validation :modify_inputs
   before_save :evaluate_markdown
   before_create :create_slug
-  before_validation :modify_inputs
   after_commit :index_to_elasticsearch, on: %i[create update]
   after_commit :remove_from_elasticsearch, on: [:destroy]
   acts_as_taggable_on :tags
@@ -73,13 +73,18 @@ class Listing < ApplicationRecord
   end
 
   def modify_inputs
-    ActsAsTaggableOn.default_parser = ActsAsTaggableOn::TagParser
+    temp_tags = tag_list
+    self.tag_list = [] # overwrite any existing tag with those from the front matter
+    tag_list.add(temp_tags, parser: ActsAsTaggableOn::TagParser)
     self.body_markdown = body_markdown.to_s.gsub(/\r\n/, "\n")
   end
 
   def restrict_markdown_input
     markdown_string = body_markdown.to_s
-    errors.add(:body_markdown, "has too many linebreaks. No more than 12 allowed.") if markdown_string.scan(/(?=\n)/).count > 12
+    if markdown_string.scan(/(?=\n)/).count > 12
+      errors.add(:body_markdown,
+                 "has too many linebreaks. No more than 12 allowed.")
+    end
     errors.add(:body_markdown, "is not allowed to include images.") if markdown_string.include?("![")
     errors.add(:body_markdown, "is not allowed to include liquid tags.") if markdown_string.include?("{% ")
   end

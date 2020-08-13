@@ -7,6 +7,7 @@ class AsyncInfoController < ApplicationController
     flash.discard(:notice)
     unless user_signed_in?
       render json: {
+        broadcast: broadcast_data,
         param: request_forgery_protection_token,
         token: form_authenticity_token
       }
@@ -22,9 +23,10 @@ class AsyncInfoController < ApplicationController
     respond_to do |format|
       format.json do
         render json: {
+          broadcast: broadcast_data,
           param: request_forgery_protection_token,
           token: form_authenticity_token,
-          user: user_data.to_json
+          user: user_data
         }
       end
     end
@@ -32,9 +34,21 @@ class AsyncInfoController < ApplicationController
 
   def shell_version
     set_surrogate_key_header "shell-version-endpoint"
-    # shell_version will change on every deploy. *Technically* could be only on changes to assets and shell, but this is more fool-proof.
+    # shell_version will change on every deploy.
+    # *Technically* could be only on changes to assets and shell, but this is more fool-proof.
     shell_version = ApplicationConfig["HEROKU_SLUG_COMMIT"]
     render json: { version: Rails.env.production? ? shell_version : rand(1000) }.to_json
+  end
+
+  def broadcast_data
+    broadcast = Broadcast.announcement.active.first.presence
+    return unless broadcast
+
+    {
+      title: broadcast&.title,
+      html: broadcast&.processed_html,
+      banner_class: helpers.banner_class(broadcast)
+    }.to_json
   end
 
   def user_data
@@ -44,8 +58,8 @@ class AsyncInfoController < ApplicationController
         name: @user.name,
         username: @user.username,
         profile_image_90: ProfileImage.new(@user).get(width: 90),
-        followed_tags: @user.cached_followed_tags.to_json(only: %i[id name bg_color_hex text_color_hex hotness_score], methods: [:points]),
-        followed_user_ids: @user.cached_following_users_ids,
+        followed_tags: @user.cached_followed_tags.to_json(only: %i[id name bg_color_hex text_color_hex hotness_score],
+                                                          methods: [:points]),
         followed_podcast_ids: @user.cached_following_podcasts_ids,
         reading_list_ids: ReadingList.new(@user).cached_ids_of_articles,
         blocked_user_ids: @user.all_blocking.pluck(:blocked_id),
@@ -53,13 +67,15 @@ class AsyncInfoController < ApplicationController
         checked_code_of_conduct: @user.checked_code_of_conduct,
         checked_terms_and_conditions: @user.checked_terms_and_conditions,
         display_sponsors: @user.display_sponsors,
+        display_announcements: @user.display_announcements,
         trusted: @user.trusted,
         moderator_for_tags: @user.moderator_for_tags,
         config_body_class: @user.config_body_class,
         pro: @user.pro?,
+        feed_style: feed_style_preference,
         created_at: @user.created_at
       }
-    end
+    end.to_json
   end
 
   def user_cache_key

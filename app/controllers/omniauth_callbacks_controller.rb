@@ -72,18 +72,20 @@ class OmniauthCallbacksController < Devise::OmniauthCallbacksController
 
       user_errors = @user.errors.full_messages
 
-      Rails.logger.error("Log in error: sign in failed. username: #{@user.username} - email: #{@user.email}")
-      Rails.logger.error("Log in error: auth data hash - #{request.env['omniauth.auth']}")
-      Rails.logger.error("Log in error: auth data hash - #{request.env['omniauth.error']&.inspect}")
-      Rails.logger.error("Log in error: user_errors: #{user_errors}")
+      Honeybadger.context({
+                            username: @user.username,
+                            user_id: @user.id,
+                            auth_data: request.env["omniauth.auth"],
+                            auth_error: request.env["omniauth.error"]&.inspect,
+                            user_errors: user_errors
+                          })
+      Honeybadger.notify("Omniauth log in error")
 
       flash[:alert] = user_errors
       redirect_to new_user_registration_url
     end
   rescue StandardError => e
-    Rails.logger.error("Log in error: #{e}")
-    Rails.logger.error("Log in error: auth data hash - #{request.env['omniauth.auth']}")
-    Rails.logger.error("Log in error: auth data hash - #{request.env['omniauth.error']&.inspect}")
+    Honeybadger.notify(e)
 
     flash[:alert] = "Log in error: #{e}"
     redirect_to new_user_registration_url
@@ -94,6 +96,6 @@ class OmniauthCallbacksController < Devise::OmniauthCallbacksController
   end
 
   def user_persisted_but_username_taken?
-    @user.persisted? && @user.errors.full_messages.join(", ").include?("username has already been taken")
+    @user.persisted? && @user.errors_as_sentence.include?("username has already been taken")
   end
 end

@@ -2,9 +2,20 @@ class ListingsController < ApplicationController
   include ListingsToolkit
   before_action :check_limit, only: [:create]
 
-  JSON_OPTIONS = {
+  INDEX_JSON_OPTIONS = {
     only: %i[
       title processed_html tag_list category id user_id slug contact_via_connect location
+    ],
+    include: {
+      author: { only: %i[username name], methods: %i[username profile_image_90] },
+      user: { only: %i[username], methods: %i[username] }
+    }
+  }.freeze
+
+  DASHBOARD_JSON_OPTIONS = {
+    only: %i[
+      title tag_list created_at expires_at bumped_at updated_at category id
+      user_id slug organization_id location published
     ],
     include: {
       author: { only: %i[username name], methods: %i[username profile_image_90] }
@@ -23,21 +34,21 @@ class ListingsController < ApplicationController
 
     if params[:view] == "moderate"
       not_found unless @displayed_listing
-      return redirect_to edit_internal_listing_path(id: @displayed_listing.id)
+      return redirect_to edit_admin_listing_path(id: @displayed_listing.id)
     end
 
     @listings =
       if params[:category].blank?
-        published_listings.
-          order("bumped_at DESC").
-          includes(:user, :organization, :taggings).
-          limit(12)
+        published_listings
+          .order(bumped_at: :desc)
+          .includes(:user, :organization, :taggings)
+          .limit(12)
       else
         Listing.none
       end
 
-    @listings_json = @listings.to_json(JSON_OPTIONS)
-    @displayed_listing_json = @displayed_listing.to_json(JSON_OPTIONS)
+    @listings_json = @listings.to_json(INDEX_JSON_OPTIONS)
+    @displayed_listing_json = @displayed_listing.to_json(INDEX_JSON_OPTIONS)
 
     # TODO: [mkohl] Can we change this to listings-#{params[:category]}?
     set_surrogate_key_header "classified-listings-#{params[:category]}"
@@ -64,14 +75,17 @@ class ListingsController < ApplicationController
   end
 
   def dashboard
-    @listings = current_user.listings.
-      includes(:organization, :taggings)
+    listings = current_user.listings
+      .includes(:organization, :taggings)
+    @listings_json = listings.to_json(DASHBOARD_JSON_OPTIONS)
 
-    organizations_ids = current_user.organization_memberships.
-      where(type_of_user: "admin").
-      pluck(:organization_id)
-    @orgs = Organization.where(id: organizations_ids)
-    @org_listings = Listing.where(organization_id: organizations_ids)
+    organizations_ids = current_user.organization_memberships
+      .where(type_of_user: "admin")
+      .pluck(:organization_id)
+    orgs = Organization.where(id: organizations_ids)
+    @orgs_json = orgs.to_json(only: %i[id name slug unspent_credits_count])
+    org_listings = Listing.where(organization_id: organizations_ids)
+    @org_listings_json = org_listings.to_json(DASHBOARD_JSON_OPTIONS)
     @user_credits = current_user.unspent_credits_count
   end
 

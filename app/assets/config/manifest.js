@@ -4,6 +4,7 @@
 //= link_directory ../stylesheets .css
 //= link internal/layout.css
 //= link s3_direct_upload.js
-// = link administrate/application.css
-// = link administrate/application.js
-// = link katex.css
+//= link administrate/application.css
+//= link administrate/application.js
+//= link katex.css
+//= link search.xml

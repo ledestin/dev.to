@@ -32,10 +32,22 @@ export default class ArticleForm extends Component {
     activateRunkitTags();
   }
 
+  // Scripts inserted via innerHTML won't execute, so we use this handler to
+  // make the Asciinema player work in previews.
+  static handleAsciinemaPreview() {
+    const els = document.getElementsByClassName('ltag_asciinema');
+    for (let i = 0; i < els.length; i += 1) {
+      const el = els[i];
+      const script = el.removeChild(el.firstElementChild);
+      postscribe(el, script.outerHTML);
+    }
+  }
+
   static propTypes = {
     version: PropTypes.string.isRequired,
     article: PropTypes.string.isRequired,
     organizations: PropTypes.string,
+    logoSvg: PropTypes.string.isRequired,
   };
 
   static defaultProps = {
@@ -44,12 +56,30 @@ export default class ArticleForm extends Component {
 
   constructor(props) {
     super(props);
-    const { article, version } = this.props;
+    const { article, version, logoSvg } = this.props;
     let { organizations } = this.props;
     this.article = JSON.parse(article);
     organizations = organizations ? JSON.parse(organizations) : null;
-
     this.url = window.location.href;
+
+    const previousContent =
+      JSON.parse(
+        localStorage.getItem(`editor-${version}-${window.location.href}`),
+      ) || {};
+    const isLocalstorageNewer =
+      new Date(previousContent.updatedAt) > new Date(this.article.updated_at);
+
+    const previousContentState =
+      previousContent && isLocalstorageNewer
+        ? {
+            title: previousContent.title || '',
+            tagList: previousContent.tagList || '',
+            mainImage: previousContent.mainImage || null,
+            bodyMarkdown: previousContent.bodyMarkdown || '',
+            edited: true,
+          }
+        : {};
+
     this.state = {
       id: this.article.id || null, // eslint-disable-line react/no-unused-state
       title: this.article.title || '',
@@ -71,38 +101,28 @@ export default class ArticleForm extends Component {
       edited: false,
       updatedAt: this.article.updated_at,
       version,
+      logoSvg,
       helpFor: null,
       helpPosition: null,
+      ...previousContentState,
     };
   }
 
   componentDidMount() {
-    const { version, updatedAt } = this.state;
-    const previousContent =
-      JSON.parse(
-        localStorage.getItem(`editor-${version}-${window.location.href}`),
-      ) || {};
-    const isLocalstorageNewer =
-      new Date(previousContent.updatedAt) > new Date(updatedAt);
-
-    if (previousContent && isLocalstorageNewer) {
-      this.setState({
-        title: previousContent.title || '',
-        tagList: previousContent.tagList || '',
-        mainImage: previousContent.mainImage || null,
-        bodyMarkdown: previousContent.bodyMarkdown || '',
-        edited: true,
-      });
-    }
-
     window.addEventListener('beforeunload', this.localStoreContent);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('beforeunload', this.localStoreContent);
   }
 
   componentDidUpdate() {
     const { previewResponse } = this.state;
+
     if (previewResponse) {
       this.constructor.handleGistPreview();
       this.constructor.handleRunkitPreview();
+      this.constructor.handleAsciinemaPreview();
     }
   }
 
@@ -280,6 +300,7 @@ export default class ArticleForm extends Component {
       version,
       helpFor,
       helpPosition,
+      logoSvg,
     } = this.state;
 
     return (
@@ -295,39 +316,38 @@ export default class ArticleForm extends Component {
           organizations={organizations}
           organizationId={organizationId}
           onToggle={this.handleOrgIdChange}
+          logoSvg={logoSvg}
         />
 
-        <div className="crayons-article-form__main">
-          {previewShowing ? (
-            <Preview
-              previewResponse={previewResponse}
-              articleState={this.state}
-              errors={errors}
-            />
-          ) : (
-            <Form
-              titleDefaultValue={title}
-              titleOnChange={linkState(this, 'title')}
-              tagsDefaultValue={tagList}
-              tagsOnInput={linkState(this, 'tagList')}
-              bodyDefaultValue={bodyMarkdown}
-              bodyOnChange={linkState(this, 'bodyMarkdown')}
-              bodyHasFocus={false}
-              version={version}
-              mainImage={mainImage}
-              onMainImageUrlChange={this.handleMainImageUrlChange}
-              errors={errors}
-              switchHelpContext={this.switchHelpContext}
-            />
-          )}
-
-          <Help
-            previewShowing={previewShowing}
-            helpFor={helpFor}
-            helpPosition={helpPosition}
-            version={version}
+        {previewShowing ? (
+          <Preview
+            previewResponse={previewResponse}
+            articleState={this.state}
+            errors={errors}
           />
-        </div>
+        ) : (
+          <Form
+            titleDefaultValue={title}
+            titleOnChange={linkState(this, 'title')}
+            tagsDefaultValue={tagList}
+            tagsOnInput={linkState(this, 'tagList')}
+            bodyDefaultValue={bodyMarkdown}
+            bodyOnChange={linkState(this, 'bodyMarkdown')}
+            bodyHasFocus={false}
+            version={version}
+            mainImage={mainImage}
+            onMainImageUrlChange={this.handleMainImageUrlChange}
+            errors={errors}
+            switchHelpContext={this.switchHelpContext}
+          />
+        )}
+
+        <Help
+          previewShowing={previewShowing}
+          helpFor={helpFor}
+          helpPosition={helpPosition}
+          version={version}
+        />
 
         <EditorActions
           published={published}

@@ -7,10 +7,11 @@ RSpec.describe Article, type: :model do
     article
   end
 
-  let_it_be(:user) { create(:user) }
+  let(:user) { create(:user) }
   let!(:article) { create(:article, user: user) }
 
   include_examples "#sync_reactions_count", :article
+  it_behaves_like "UserSubscriptionSourceable"
 
   describe "validations" do
     it { is_expected.to validate_uniqueness_of(:canonical_url).allow_blank }
@@ -40,7 +41,8 @@ RSpec.describe Article, type: :model do
       it "on destroy enqueues job to delete article from elasticsearch" do
         article = create(:article)
 
-        sidekiq_assert_enqueued_with(job: Search::RemoveFromIndexWorker, args: [described_class::SEARCH_CLASS.to_s, article.search_id]) do
+        sidekiq_assert_enqueued_with(job: Search::RemoveFromIndexWorker,
+                                     args: [described_class::SEARCH_CLASS.to_s, article.search_id]) do
           article.destroy
         end
       end
@@ -92,7 +94,7 @@ RSpec.describe Article, type: :model do
     context "when published" do
       before do
         # rubocop:disable RSpec/NamedSubject
-        allow(subject).to receive(:published?).and_return(true)
+        allow(subject).to receive(:published?).and_return(true) # rubocop:disable RSpec/SubjectStub
         # rubocop:enable RSpec/NamedSubject
       end
 
@@ -240,6 +242,16 @@ RSpec.describe Article, type: :model do
       it "rejects tags with length > 30" do
         tags = "'testing tag length with more than 30 chars', tag"
         expect(build(:article, tags: tags).valid?).to be(false)
+      end
+
+      it "rejects tag with non-alphanumerics" do
+        expect { build(:article, tags: "c++").validate! }.to raise_error(ActiveRecord::RecordInvalid)
+      end
+
+      it "always downcase tags" do
+        tags = "UPPERCASE, CAPITALIZE"
+        article = create(:article, tags: tags)
+        expect(article.tag_list).to eq(tags.downcase.split(", "))
       end
 
       it "parses tags when description is empty" do

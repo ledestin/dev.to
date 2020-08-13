@@ -1,12 +1,13 @@
 class PagesController < ApplicationController
   # No authorization required for entirely public controller
-  before_action :set_cache_control_headers, only: %i[show rlyweb badge bounty faq robots]
+  before_action :set_cache_control_headers, only: %i[show badge bounty faq robots]
 
   def show
     @page = Page.find_by!(slug: params[:slug])
     not_found unless FeatureFlag.accessible?(@page.feature_flag_name, current_user)
 
     set_surrogate_key_header "show-page-#{params[:slug]}"
+    render json: @page.body_json if @page.template == "json"
   end
 
   def about
@@ -63,16 +64,13 @@ class PagesController < ApplicationController
     @feedback_message = FeedbackMessage.new(
       reported_url: reported_url&.chomp("?i=i"),
     )
-    render "pages/report-abuse"
+    render "pages/report_abuse"
   end
 
   def robots
+    # dynamically-generated static page
     respond_to :text
     set_surrogate_key_header "robots_page"
-  end
-
-  def rlyweb
-    set_surrogate_key_header "rlyweb"
   end
 
   def welcome
@@ -96,11 +94,11 @@ class PagesController < ApplicationController
 
   def checkin
     daily_thread =
-      Article.
-        published.
-        where(user: User.find_by(username: "codenewbiestaff")).
-        order("articles.published_at" => :desc).
-        first
+      Article
+        .published
+        .where(user: User.find_by(username: "codenewbiestaff"))
+        .order("articles.published_at" => :desc)
+        .first
 
     if daily_thread
       redirect_to daily_thread.path

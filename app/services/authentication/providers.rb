@@ -1,10 +1,3 @@
-# We require all authentication modules to make sure providers
-# are correctly preloaded both in development and in production and
-# ready to be used when needed at runtime
-Dir[Rails.root.join("app/services/authentication/**/*.rb")].each do |f|
-  require_dependency(f)
-end
-
 module Authentication
   module Providers
     # Retrieves a provider that is both available and enabled
@@ -39,7 +32,7 @@ module Authentication
     end
 
     # Returns enabled providers
-    # TODO: [thepracticaldev/oss] ideally this should be "available - disabled"
+    # TODO: [@forem/oss] ideally this should be "available - disabled"
     # we can get there once we have feature flags
     def self.enabled
       SiteConfig.authentication_providers.map(&:to_sym).sort

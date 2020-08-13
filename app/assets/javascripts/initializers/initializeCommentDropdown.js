@@ -1,25 +1,22 @@
-'use strict';
-
 function initializeCommentDropdown() {
   const announcer = document.getElementById('article-copy-link-announcer');
 
   function isClipboardSupported() {
     return (
-      typeof navigator.clipboard !== "undefined" &&
-      navigator.clipboard !== null
+      typeof navigator.clipboard !== 'undefined' && navigator.clipboard !== null
     );
   }
 
   function isNativeAndroidDevice() {
     return (
       navigator.userAgent === 'DEV-Native-android' &&
-      typeof AndroidBridge !== "undefined" &&
+      typeof AndroidBridge !== 'undefined' &&
       AndroidBridge !== null
     );
   }
 
   function removeClass(className) {
-    return element => element.classList.remove(className);
+    return (element) => element.classList.remove(className);
   }
 
   function getAllByClassName(className) {
@@ -54,7 +51,8 @@ function initializeCommentDropdown() {
       AndroidBridge.copyToClipboard(inputValue);
       showAnnouncer();
     } else if (isClipboardSupported()) {
-      navigator.clipboard.writeText(inputValue)
+      navigator.clipboard
+        .writeText(inputValue)
         .then(() => {
           showAnnouncer();
         })
@@ -72,7 +70,7 @@ function initializeCommentDropdown() {
       event.target.matches('.dropbtn') ||
       event.target.matches('clipboard-copy') ||
       event.target.matches('clipboard-copy input') ||
-      event.target.matches('clipboard-copy img') ||
+      event.target.matches('clipboard-copy svg') ||
       event.target.parentElement.classList.contains('dropdown-link-row')
     );
   }
@@ -94,7 +92,7 @@ function initializeCommentDropdown() {
   }
 
   function removeAllShowing() {
-    getAllByClassName('showing').forEach(removeClass('showing'));
+    getAllByClassName('crayons-dropdown').forEach(removeClass('block'));
   }
 
   function outsideClickListener(event) {
@@ -106,18 +104,27 @@ function initializeCommentDropdown() {
   }
 
   function dropdownFunction(e) {
-    var button = e.target.parentElement;
-    var dropdownContent = button.parentElement.getElementsByClassName(
-      'dropdown-content',
+    const button = e.currentTarget;
+    const dropdownContent = button.parentElement.getElementsByClassName(
+      'crayons-dropdown',
     )[0];
-    if (dropdownContent.classList.contains('showing')) {
-      dropdownContent.classList.remove('showing');
+
+    if (!dropdownContent) {
+      return;
+    }
+
+    finalizeAbuseReportLink(
+      dropdownContent.querySelector('.report-abuse-link-wrapper'),
+    );
+
+    if (dropdownContent.classList.contains('block')) {
+      dropdownContent.classList.remove('block');
       removeClickListener();
       removeCopyListener();
       hideAnnouncer();
     } else {
       removeAllShowing();
-      dropdownContent.classList.add('showing');
+      dropdownContent.classList.add('block');
       const clipboardCopyElement = document.getElementsByTagName(
         'clipboard-copy',
       )[0];
@@ -127,6 +134,15 @@ function initializeCommentDropdown() {
         clipboardCopyElement.addEventListener('click', copyText);
       }
     }
+  }
+
+  function finalizeAbuseReportLink(reportAbuseLink) {
+    // Add actual link location (SEO doesn't like these "useless" links, so adding in here instead of in HTML)
+    if (!reportAbuseLink) {
+      return;
+    }
+
+    reportAbuseLink.innerHTML = `<a href="${reportAbuseLink.dataset.path}" class="crayons-link crayons-link--block">Report Abuse</a>`;
   }
 
   function addDropdownListener(dropdown) {

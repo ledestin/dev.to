@@ -1,16 +1,30 @@
 class ApplicationController < ActionController::Base
+  skip_before_action :track_ahoy_visit
+  before_action :verify_private_forem
   protect_from_forgery with: :exception, prepend: true
 
   include SessionCurrentUser
   include ValidRequest
   include Pundit
-  include FastlyHeaders
+  include CachingHeaders
   include ImageUploads
+  include VerifySetupCompleted
 
   rescue_from ActionView::MissingTemplate, with: :routing_error
 
   rescue_from RateLimitChecker::LimitReached do |exc|
     error_too_many_requests(exc)
+  end
+
+  def verify_private_forem
+    return if %w[shell async_info ga_events].include?(controller_name)
+    return if user_signed_in? || SiteConfig.public
+
+    if api_action?
+      authenticate!
+    else
+      render template: "devise/registrations/new"
+    end
   end
 
   def not_found
@@ -81,6 +95,13 @@ class ApplicationController < ActionController::Base
   end
   helper_method :internal_navigation?
 
+  def feed_style_preference
+    # TODO: Future functionality will let current_user override this value with UX preferences
+    # if current_user exists and has a different preference.
+    SiteConfig.feed_style
+  end
+  helper_method :feed_style_preference
+
   def set_no_cache_header
     response.headers["Cache-Control"] = "no-cache, no-store"
     response.headers["Pragma"] = "no-cache"
@@ -97,5 +118,9 @@ class ApplicationController < ActionController::Base
 
   def anonymous_user
     User.new(ip_address: request.env["HTTP_FASTLY_CLIENT_IP"])
+  end
+
+  def api_action?
+    self.class.to_s.start_with?("Api::")
   end
 end

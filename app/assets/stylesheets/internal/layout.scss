@@ -1,3 +1,5 @@
+@import '../crayons';
+@import '../scaffolds';
 @import '../variables';
 
 #siteConfigBodyContainer {
@@ -26,9 +28,9 @@
 }
 
 .buffer-cell {
-    /* Max-width derived from width of a Bootstrap container */
-    max-width: 1140px;
-    word-wrap: break-word;
+  /* Max-width derived from width of a Bootstrap container */
+  max-width: 1140px;
+  word-wrap: break-word;
 }
 
 .bg-featured {
@@ -47,6 +49,12 @@
 
 .border-highlighted {
   border: 20px solid black;
+}
+
+.broadcast-wrapper {
+  display: flex;
+  position: relative;
+  z-index: auto;
 }
 
 .sidebar-nav {
@@ -70,4 +78,22 @@
   .sidebar-nav-item.active {
     background: $light-medium-gray;
   }
+}
+
+body {
+  padding-top: 0;
+}
+
+.site-config__required {
+  background: #dc3545;
+    border-radius: 19px;
+    padding: 5px 15px;
+    color: white;
+    text-align: right;
+    margin-left: 10px;
+}
+
+.site-config__label {
+  display: flex;
+  justify-content: space-between;
 }

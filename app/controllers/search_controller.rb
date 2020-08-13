@@ -57,7 +57,11 @@ class SearchController < ApplicationController
   end
 
   def chat_channels
-    search_user_id = chat_channel_params[:user_id].present? ? [current_user.id, SiteConfig.mascot_user_id] : [current_user.id]
+    search_user_id = if chat_channel_params[:user_id].present?
+                       [current_user.id, SiteConfig.mascot_user_id]
+                     else
+                       [current_user.id]
+                     end
     ccm_docs = Search::ChatChannelMembership.search_documents(
       params: chat_channel_params.merge(user_id: search_user_id).to_h,
     )
@@ -90,7 +94,11 @@ class SearchController < ApplicationController
                   feed_content_search
                 end
 
-    render json: { result: feed_docs }
+    render json: {
+      result: feed_docs,
+      display_jobs_banner: SiteConfig.display_jobs_banner,
+      jobs_url: SiteConfig.jobs_url
+    }
   end
 
   def reactions
